@@ -463,13 +463,15 @@ Item {
         });
     }
 
-    function _errorText(hostKey, msg) {
+    function _errorText(hostKey, msg, asksPassword) {
         switch (Logic.errorKind(hostKey, msg)) {
         case "hostkey-changed":
             return i18n("Host key CHANGED, possible man-in-the-middle attack. Verify the host and fix ~/.ssh/known_hosts.");
         case "hostkey-new":
             return i18n("Host key not trusted yet");
         case "publickey":
+            if (asksPassword)
+                return i18n("%1. Wrong password, or the password dialog was cancelled", msg.replace(/\.\s*$/, ""));
             return i18n("%1. No usable SSH key: add it to an agent with ssh-add, or start one with systemctl --user enable --now ssh-agent.socket", msg.replace(/\.\s*$/, ""));
         case "raw":
             return msg;
@@ -523,7 +525,7 @@ Item {
             if (status === "error") {
                 if (!row.cached && row.invocation !== "")
                     cache[id] = { inv: row.invocation, msg: msg, hk: hk };
-                newErr[id] = _errorText(hk, msg);
+                newErr[id] = _errorText(hk, msg, findForward(id).askPassword === true);
                 if (hk !== "")
                     newHk[id] = hk;
             } else {
