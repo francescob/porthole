@@ -72,7 +72,8 @@ It follows your colour scheme and accent colour:
   supported; the popup says so.
 - the OpenSSH client and iproute2 (`ss`), present on almost every desktop
 - SSH that logs in without a prompt: a key without a passphrase, or one loaded in an
-  agent (see [SSH agent](#ssh-agent))
+  agent (see [SSH agent](#ssh-agent)), or a forward with **Ask for a password** on
+  (needs `kdialog` or `zenity`, and OpenSSH 8.4 or newer)
 
 ## Install
 
@@ -169,6 +170,13 @@ are ordinary ones:
 systemctl --user list-units 'porthole-*'
 journalctl --user -u porthole-<id>
 ```
+
+## Password prompts
+
+A forward with `"askPassword": true` runs without `BatchMode`, and ssh is given
+`SSH_ASKPASS` (a small `kdialog`/`zenity` helper written to `$XDG_RUNTIME_DIR`) with
+`SSH_ASKPASS_REQUIRE=force`. The row stays *Connecting…* until you answer the dialog.
+The password goes from the dialog to ssh only; it is never stored.
 
 ## SSH agent
 

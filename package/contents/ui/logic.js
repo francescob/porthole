@@ -28,7 +28,7 @@ function genId(counter) {
     return "f" + Date.now().toString(36) + Number(counter || 0).toString(36);
 }
 
-var KNOWN_FIELDS = ["id", "label", "bindAddress", "localPort", "sshTarget", "remoteHost", "remotePort", "autostart", "extraOptions"];
+var KNOWN_FIELDS = ["id", "label", "bindAddress", "localPort", "sshTarget", "remoteHost", "remotePort", "autostart", "extraOptions", "askPassword"];
 
 // Small stable string hash (FNV-1a, 32 bit) for ids of hand-written entries.
 function hashString(text) {
@@ -241,7 +241,7 @@ function normalizeForward(raw, makeId) {
     if (bind === null)
         return null;
     var id = String(raw.id || "").trim().replace(/[^A-Za-z0-9._-]/g, "_");
-    return {
+    var def = {
         id: id || makeId(),
         label: String(raw.label || "").trim(),
         bindAddress: bind,
@@ -252,6 +252,10 @@ function normalizeForward(raw, makeId) {
         autostart: raw.autostart === true,
         extraOptions: String(raw.extraOptions || "").trim()
     };
+    // Written only when on, so existing stores and their saved files stay byte for byte.
+    if (raw.askPassword === true)
+        def.askPassword = true;
+    return def;
 }
 
 // Parses the store without ever losing what the user wrote:
@@ -405,13 +409,17 @@ function forwardCommand(f, trustHostKey) {
     var bind = normalizeBindAddress(f.bindAddress);
     if (bind)
         spec = (bind.indexOf(":") >= 0 ? "[" + bind + "]" : bind) + ":" + spec;
-    var cmd = ["ssh", "-N", "-T",
-        "-o", "BatchMode=yes",
+    // BatchMode forbids every prompt, passwords included; a forward that asks
+    // for one drops it and lets SSH_ASKPASS (see startScript) collect it.
+    var cmd = ["ssh", "-N", "-T"];
+    if (f.askPassword !== true)
+        cmd.push("-o", "BatchMode=yes");
+    cmd.push(
         "-o", "ExitOnForwardFailure=yes",
         "-o", "ServerAliveInterval=30",
         "-o", "ServerAliveCountMax=3",
         "-o", "ConnectTimeout=10",
-        "-L", spec];
+        "-L", spec);
     // One-shot opt-in from "Trust host key & retry". accept-new records an
     // unknown host but still fails hard when a known key has CHANGED.
     if (trustHostKey === true)
@@ -483,11 +491,28 @@ function startScript(f, otherUnits, trustHostKey, description) {
         + '[ $busy = no ] && break; sleep 0.1; done; '
 
         + AGENT_SHELL
+        + (f.askPassword === true ? ASKPASS_SHELL : "")
         + "exec systemd-run --user --unit=" + shellQuote(unit)
         + " --description=" + shellQuote(description)
         + ' ${sock:+"--setenv=SSH_AUTH_SOCK=$sock"}'
+        + (f.askPassword === true
+            ? ' "--setenv=SSH_ASKPASS=$ap" --setenv=SSH_ASKPASS_REQUIRE=force'
+              + ' ${DISPLAY:+"--setenv=DISPLAY=$DISPLAY"} ${WAYLAND_DISPLAY:+"--setenv=WAYLAND_DISPLAY=$WAYLAND_DISPLAY"}'
+              + ' ${XAUTHORITY:+"--setenv=XAUTHORITY=$XAUTHORITY"}'
+            : "")
         + " -- " + ssh;
 }
+
+// 2026-10-05: ssh runs this helper (SSH_ASKPASS_REQUIRE=force, OpenSSH 8.4+)
+// whenever it needs a password and there is no terminal. It is written at
+// start time so the package needs no executable file; the password only ever
+// travels from the dialog to ssh's stdin, never to disk, argv or the journal.
+var ASKPASS_SHELL =
+    'ap="${XDG_RUNTIME_DIR:-/tmp}/porthole-askpass"; ' +
+    'printf \'%s\\n\' \'#!/bin/sh\' ' +
+    '\'if command -v kdialog >/dev/null 2>&1; then exec kdialog --title Porthole --password "$1"; fi\' ' +
+    '\'if command -v zenity >/dev/null 2>&1; then exec zenity --password --title=Porthole; fi\' ' +
+    '\'exit 1\' > "$ap" && chmod 700 "$ap"; ';
 
 function stopScript(id) {
     var unit = shellQuote(unitName(id));

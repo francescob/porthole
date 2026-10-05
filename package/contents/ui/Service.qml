@@ -231,6 +231,7 @@ Item {
 
     function _definition(id, def) {
         return Logic.normalizeForward({
+            askPassword: def.askPassword,
             id: id,
             label: def.label,
             bindAddress: def.bindAddress,

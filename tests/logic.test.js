@@ -760,4 +760,18 @@ test("local ports: tunnels on several addresses of one port stay out, a server o
     assert.strictEqual(L.browseHost({ scope: "all", hosts: ["0.0.0.0"] }), "localhost");
 });
 
+
+test("askPassword drops BatchMode and wires SSH_ASKPASS, only for that forward", () => {
+    const mk = () => "id";
+    const plain = L.normalizeForward({ localPort: 1, sshTarget: "h" }, mk);
+    assert.strictEqual("askPassword" in plain, false);
+    const f = L.normalizeForward({ id: "p", localPort: 1, sshTarget: "h", askPassword: true }, mk);
+    assert.strictEqual(f.askPassword, true);
+    assert.ok(!Array.from(L.forwardCommand(f, false)).includes("BatchMode=yes"));
+    assert.ok(Array.from(L.forwardCommand(plain, false)).includes("BatchMode=yes"));
+    const s = L.startScript(f, [], false, "d");
+    assert.ok(s.includes("SSH_ASKPASS_REQUIRE=force") && s.includes("SSH_ASKPASS=$ap"));
+    assert.ok(!L.startScript(plain, [], false, "d").includes("SSH_ASKPASS"));
+});
+
 console.log(`all ${n} tests passed`);

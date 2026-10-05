@@ -41,6 +41,7 @@ ColumnLayout {
         remotePort.text = f ? String(f.remotePort) : "3000";
         extraField.text = f ? f.extraOptions : "";
         autostartBox.checked = f ? f.autostart : false;
+        passwordBox.checked = f ? f.askPassword === true : false;
         remotePortTouched = editing;
         labelField.forceActiveFocus();
     }
@@ -77,6 +78,7 @@ ColumnLayout {
             remoteHost: remoteHostField.text,
             remotePort: rp,
             autostart: autostartBox.checked,
+            askPassword: passwordBox.checked,
             extraOptions: extraField.text
         };
         const ok = editing ? service.updateForward(forward.id, def) : service.addForward(def) !== null;
@@ -257,6 +259,14 @@ ColumnLayout {
             id: autostartBox
             Layout.fillWidth: true
             text: i18n("Start when Plasma starts")
+        }
+        Item {
+            implicitWidth: 1
+        }
+        PlasmaComponents3.CheckBox {
+            id: passwordBox
+            Layout.fillWidth: true
+            text: i18n("Ask for a password")
         }
     }
 
