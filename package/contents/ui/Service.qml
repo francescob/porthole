@@ -230,7 +230,6 @@ Item {
     }
 
     function _definition(id, def) {
-        console.log("PORTHOLE-DEBUG _definition askPassword=" + def.askPassword + " -> " + JSON.stringify(Logic.normalizeForward({localPort: 1, sshTarget: "h", askPassword: def.askPassword}, genId)));
         return Logic.normalizeForward({
             askPassword: def.askPassword,
             id: id,

@@ -81,7 +81,6 @@ ColumnLayout {
             askPassword: passwordBox.checked,
             extraOptions: extraField.text
         };
-        console.log("PORTHOLE-DEBUG submit askPassword=" + def.askPassword + " checked=" + passwordBox.checked);
         const ok = editing ? service.updateForward(forward.id, def) : service.addForward(def) !== null;
         if (ok)
             done();
